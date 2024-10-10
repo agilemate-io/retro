@@ -1,2 +1,2 @@
-# retro
-Agilemate retrospectives module repository
+# Agilemate retro
+Agilemate Retrospectives web application module repository
