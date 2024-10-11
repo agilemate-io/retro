@@ -44,6 +44,11 @@
 </template>
 
 <script setup lang="ts">
+// import { databases, ID } from '@/appwrite';
+import { useStore } from '@/composables/store';
+import { db } from '@/firebase';
+import { doc, setDoc } from "firebase/firestore";
+import { uid } from 'uid';
 import { onMounted, reactive, ref } from 'vue';
 
 const formats = [
@@ -112,19 +117,109 @@ let defaults = {
   encryption: false,
 }
 let store = reactive(defaults)
+let sessionInfo = reactive({ currentSession: null as string | null, allSessions: [] as string[] })
 
-function start() {
+async function start() {
   console.log('start', name.value, password.value, encryption.value, title.value, format.value, icebreaker.value)
-  window.localStorage.setItem('retro', JSON.stringify(store))
+
+  const docId = await createRetro()
+
+  const { set } = useStore()
+  set('retro', store, store.password)
+  // set('app', { currentSession: docId, allSessions: [docId] })
+  // const sessionInfo = { currentSession: docId, allSessions: [docId] }
+  if (docId) {
+    sessionInfo.currentSession = docId
+    if (!sessionStorage.allSessions) sessionStorage.allSessions = []
+    if (!sessionStorage.allSessions.includes(docId)) sessionInfo.allSessions.push(docId)
+    window.localStorage.setItem('app', JSON.stringify(sessionInfo))
+  }
+
+  console.log('Saved data', store, store.password)
+  // let data = JSON.stringify(store)
+  // if (store.encryption && store.password) {
+  //   console.log('Encrypting data')
+  //   data = encrypt(data, store.password)
+  // }
+  // window.localStorage.setItem('retro', data)
+  // const sessionData = { encryption: true, password: store.password }
+  // window.sessionStorage.setItem('retro', JSON.stringify(sessionData))
+}
+
+// type Retrospective = {
+//   title: string,
+//   description: string | null,
+//   owner: string,
+//   format: string,
+//   icebreaker: string,
+//   board: any,
+// }
+
+async function createRetro() {
+  console.log('createRetro')
+  try {
+    // const doc = await databases.getDocument('agilemate', 'retrospectives', 'sessions')
+    const retro = {
+      title: store.title,
+      owner: store.name,
+      format: store.format,
+      // icebreaker: store.icebreaker,
+      board: {
+        columns: [
+          { title: 'Start', cards: [] },
+          { title: 'Stop', cards: [] },
+          { title: 'Continue', cards: [] },
+        ],
+      },
+      // config: {
+      //   encryption: store.encryption,
+      //   password: store.password,
+      // },
+      // created: new Date().toISOString(),
+      // updated: new Date().toISOString(),
+    }
+    // await databases.createDocument('agilemate', 'retrospectives', ID.unique(0), doc)
+    // await databases.updateDocument('agilemate', 'retrospectives', 'sessions', doc.$id, doc)
+
+
+    // Add a new document in collection "cities"
+    const docId = uid(6)
+    await setDoc(doc(db, "retro", docId), retro)
+    // await addDoc(collection(db, "retro"), retro); // automatinc id
+    // db.app..collection('retrospectives').add(doc)
+    console.log('Retrospective created')
+    return docId
+  } catch (error) {
+    console.error('Error creating retrospective', error)
+  }
 }
 
 onMounted(() => {
   console.log('Mounted')
-  const state = window.localStorage.getItem('retro')
-  if (state) {
-    defaults = JSON.parse(state)
-    store = reactive(defaults)
-  }
+  const info = window.localStorage.getItem('app')
+  if (info) sessionInfo = JSON.parse(info)
+  console.log('Session info loaded', sessionInfo)
+  const { get } = useStore()
+  // const data = get('retro', store.password)
+  const data = get('retro')
+  console.log('Loaded data', data)
+  defaults = data
+  store = reactive(defaults)
+  // const sessionStorageRawData = wiow.sessionStorage.getItem('retro')
+  // let sessionStorageData: { encrypon: boolean, password: string } = null
+  // if (sessionStorageRawData) {
+  // sessionStorageData = JSON.parssessionStorageRawData)
+  // }
+  // const localStorageRawData wind.localStorage.getItem('retro')
+  // if (localStorageRawData) {
+  // localStorageData = JSON.parse(calStorageRawData)
+  //   if (!sessionStorageData.encrypon) {
+  //     console.log('Encrypted data  decrypting', defaults)
+  //     defaults = decrypt(defaults,efaults.password)
+  //   }
+
+  //   store = reactive(deflts)
+  // }
 })
 </script>
 

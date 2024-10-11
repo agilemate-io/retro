@@ -1,4 +1,4 @@
-import { Client, Databases } from 'appwrite'
+import { Client, Databases, ID, Models } from 'appwrite'
 
 const client = new Client()
   .setEndpoint('https://cloud.appwrite.io/v1')
@@ -6,10 +6,5 @@ const client = new Client()
 
 const databases = new Databases(client)
 
-const result = await databases.listDocuments(
-  'agilemate', // databaseId
-  'retrospective', // collectionId
-  [] // queries (optional)
-)
+export { client, Client, databases, Databases, ID, type Models }
 
-console.log(result)
