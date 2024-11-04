@@ -3,7 +3,7 @@
     <v-img class="mb-4 mt-8" height="150" src="@/assets/logo.png" />
     <div class="text-center">
       <v-img image="@assets/logo.png" />
-      <div class="text-body-2 font-weight-light mb-n1">Welcome to</div>
+      <div class="text-body-2 font-weight-light">Welcome to</div>
       <div class="text-h3 font-weight-bold">Agilemate</div>
       <div class="text-h4">Retrospectives</div>
     </div>
@@ -11,30 +11,34 @@
     <v-form @submit.prevent="start">
       <v-container>
         <v-row>
+          {{ store }}
           <v-col sm="12" md="6">
-            <v-text-field v-model="store.title" label="Retrospective title" outlined density="compact" class="my-4"
+            <v-text-field v-model="store.title" label="Retrospective title" density="compact" class="my-4"
               hide-details />
-            <v-combobox v-model="store.format" label="Retrospective format" outlined density="compact" class="my-4"
+            <v-combobox v-model="store.format" label="Retrospective format" density="compact" class="my-4"
               hide-details :items="formats" />
             <v-btn block variant="text" size="small" color="secondary" class="my-4" @click="options = !options" text="More
               options" />
             <v-sheet color="transparent" class="my-4" v-if="options">
-              <v-combobox v-model="store.icebreaker" label="Icebreaker question" outlined density="compact" class="my-4"
+              <v-combobox v-model="store.icebreaker" label="Icebreaker question" density="compact" class="my-4"
                 hide-details :items="icebreakers" />
             </v-sheet>
           </v-col>
           <v-col sm="12" md="6">
-            <v-text-field v-model="store.name" label="Username" outlined density="compact"
+            <v-text-field v-model="store.username" label="Username" density="compact"
               hint="Enter your display name or alias" class="my-4" prepend-inner-icon="mdi-account" required
               hide-details />
-
             <v-switch v-model="store.encryption" label="Encrypt data" density="compact" class="ma-4" hide-details />
-            <v-text-field :disabled="!store.encryption" v-model="store.password" label="Password" outlined
+            <v-text-field v-if="store.encryption" v-model="store.password" label="Password"
               density="compact" hint="Enter data encryption password" class="my-2" prepend-inner-icon="mdi-lock"
               hide-details />
           </v-col>
           <v-col cols="12">
             <v-btn color="primary" block size="large" type="submit" text="Start retrospective" />
+            <v-btn block variant="text" size="small" color="secondary" class="my-4" @click="sessions = !sessions" text="Previous retrospectives" />
+            <div v-if="sessions">
+              <a href="" v-for="(retro, id) in retros" :key="id" class="text-caption mx-4">{{ retro.title }}</a>
+            </div>
           </v-col>
         </v-row>
       </v-container>
@@ -44,12 +48,14 @@
 </template>
 
 <script setup lang="ts">
-// import { databases, ID } from '@/appwrite';
-import { useStore } from '@/composables/store';
-import { db } from '@/firebase';
-import { doc, setDoc } from "firebase/firestore";
-import { uid } from 'uid';
-import { onMounted, reactive, ref } from 'vue';
+import { useStore } from '@/composables/store'
+// import { db } from '@/firebase'
+import { doc, getDoc, setDoc } from "firebase/firestore"
+import { uid } from 'uid'
+import { onMounted, reactive, ref } from 'vue'
+import { useFirestore, useDocument } from 'vuefire'
+
+const db = useFirestore()
 
 const formats = [
   '~~Random~~',
@@ -76,7 +82,7 @@ const formats = [
 ]
 
 const icebreakers = [
-  '~~Random~~',
+  '',
   'What is your favorite book?',
   'If you could have any superpower, what would it be?',
   'What is your favorite hobby?',
@@ -99,28 +105,23 @@ const icebreakers = [
   'What is one goal you have for this year?'
 ]
 
-const name = ref('')
-const password = ref('')
-const encryption = ref(false)
 const options = ref(false)
-
-const title = ref('Sprint Retrospective')
-const format = ref(formats[0])
-const icebreaker = ref('')
+const sessions = ref(false)
 
 let defaults = {
   title: 'Sprint Retrospective',
   format: formats[0],
   icebreaker: icebreakers[0],
-  name: '',
+  username: '',
   password: '',
   encryption: false,
 }
 let store = reactive(defaults)
 let sessionInfo = reactive({ currentSession: null as string | null, allSessions: [] as string[] })
+let retros = {}
 
 async function start() {
-  console.log('start', name.value, password.value, encryption.value, title.value, format.value, icebreaker.value)
+  console.log('start', store)
 
   const docId = await createRetro()
 
@@ -156,12 +157,11 @@ async function start() {
 // }
 
 async function createRetro() {
-  console.log('createRetro')
   try {
     // const doc = await databases.getDocument('agilemate', 'retrospectives', 'sessions')
     const retro = {
       title: store.title,
-      owner: store.name,
+      owner: store.username,
       format: store.format,
       // icebreaker: store.icebreaker,
       board: {
@@ -178,11 +178,11 @@ async function createRetro() {
       // created: new Date().toISOString(),
       // updated: new Date().toISOString(),
     }
+    console.log('createRetro', retro)
     // await databases.createDocument('agilemate', 'retrospectives', ID.unique(0), doc)
     // await databases.updateDocument('agilemate', 'retrospectives', 'sessions', doc.$id, doc)
 
 
-    // Add a new document in collection "cities"
     const docId = uid(6)
     await setDoc(doc(db, "retro", docId), retro)
     // await addDoc(collection(db, "retro"), retro); // automatinc id
@@ -194,32 +194,27 @@ async function createRetro() {
   }
 }
 
+async function loadRetros() {
+  for (let retroId of sessionInfo.allSessions) {
+    // const retro = await useDocument(doc(db, "retro", retroId))
+    const retro = await getDoc(doc(db, "retro", retroId))
+    if(retro.exists()) {
+      console.log('Retrospective', retro.data(), retroId)
+      retros[retro.id] = retro.data()
+    }
+  }
+}
+
 onMounted(() => {
-  console.log('Mounted')
   const info = window.localStorage.getItem('app')
   if (info) sessionInfo = JSON.parse(info)
-  console.log('Session info loaded', sessionInfo)
+  console.log('Loaded session info', sessionInfo)
   const { get } = useStore()
-  // const data = get('retro', store.password)
   const data = get('retro')
   console.log('Loaded data', data)
-  defaults = data
+  if (data) defaults = data
   store = reactive(defaults)
-  // const sessionStorageRawData = wiow.sessionStorage.getItem('retro')
-  // let sessionStorageData: { encrypon: boolean, password: string } = null
-  // if (sessionStorageRawData) {
-  // sessionStorageData = JSON.parssessionStorageRawData)
-  // }
-  // const localStorageRawData wind.localStorage.getItem('retro')
-  // if (localStorageRawData) {
-  // localStorageData = JSON.parse(calStorageRawData)
-  //   if (!sessionStorageData.encrypon) {
-  //     console.log('Encrypted data  decrypting', defaults)
-  //     defaults = decrypt(defaults,efaults.password)
-  //   }
-
-  //   store = reactive(deflts)
-  // }
+  loadRetros()
 })
 </script>
 
