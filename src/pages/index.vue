@@ -1,225 +1,360 @@
 <template>
-  <v-responsive class="align-start fill-height bg-application">
-    <v-img class="mb-4 mt-8" height="150" src="@/assets/logo.png" />
-    <div class="text-center">
-      <v-img image="@assets/logo.png" />
-      <div class="text-body-2 font-weight-light">Welcome to</div>
-      <div class="text-h3 font-weight-bold">Agilemate</div>
-      <div class="text-h4">Retrospectives</div>
-    </div>
-
-    <v-form @submit.prevent="start">
-      <v-container>
-        <v-row>
-          {{ store }}
-          <v-col sm="12" md="6">
-            <v-text-field v-model="store.title" label="Retrospective title" density="compact" class="my-4"
-              hide-details />
-            <v-combobox v-model="store.format" label="Retrospective format" density="compact" class="my-4"
-              hide-details :items="formats" />
-            <v-btn block variant="text" size="small" color="secondary" class="my-4" @click="options = !options" text="More
-              options" />
-            <v-sheet color="transparent" class="my-4" v-if="options">
-              <v-combobox v-model="store.icebreaker" label="Icebreaker question" density="compact" class="my-4"
-                hide-details :items="icebreakers" />
-            </v-sheet>
-          </v-col>
-          <v-col sm="12" md="6">
-            <v-text-field v-model="store.username" label="Username" density="compact"
-              hint="Enter your display name or alias" class="my-4" prepend-inner-icon="mdi-account" required
-              hide-details />
-            <v-switch v-model="store.encryption" label="Encrypt data" density="compact" class="ma-4" hide-details />
-            <v-text-field v-if="store.encryption" v-model="store.password" label="Password"
-              density="compact" hint="Enter data encryption password" class="my-2" prepend-inner-icon="mdi-lock"
-              hide-details />
-          </v-col>
-          <v-col cols="12">
-            <v-btn color="primary" block size="large" type="submit" text="Start retrospective" />
-            <v-btn block variant="text" size="small" color="secondary" class="my-4" @click="sessions = !sessions" text="Previous retrospectives" />
-            <div v-if="sessions">
-              <a href="" v-for="(retro, id) in retros" :key="id" class="text-caption mx-4">{{ retro.title }}</a>
+  <v-container fluid>
+    <!-- Welcome Section -->
+    <v-row class="mb-6">
+      <v-col cols="12">
+        <v-card class="welcome-card" elevation="2">
+          <v-card-text>
+            <div class="d-flex align-center">
+              <div>
+                <div class="text-h5 mb-2">
+                  Welcome{{ currentUser ? `, ${currentUser.displayName}` : '' }}!
+                </div>
+                <p class="text-subtitle-1">
+                  {{ getWelcomeMessage() }}
+                </p>
+              </div>
+              <v-spacer />
+              <v-btn
+                v-if="currentTeam"
+                color="primary"
+                size="large"
+                prepend-icon="mdi-plus"
+                @click="router.push('/new-retro')"
+              >
+                New Retrospective
+              </v-btn>
+              <v-btn
+                v-else
+                color="primary"
+                size="large"
+                prepend-icon="mdi-account-group"
+                @click="showCreateTeamDialog = true"
+              >
+                Create Team
+              </v-btn>
             </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Quick Actions and Stats -->
+    <v-row class="mb-6">
+      <v-col cols="12" md="3">
+        <v-card class="stats-card" elevation="2">
+          <v-card-text>
+            <div class="d-flex flex-column align-center">
+              <v-icon size="48" color="primary" class="mb-2">
+                mdi-calendar-check
+              </v-icon>
+              <div class="text-h4 mb-1">{{ recentRetros.length }}</div>
+              <div class="text-subtitle-1">Recent Retros</div>
+    </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="3">
+        <v-card class="stats-card" elevation="2">
+          <v-card-text>
+            <div class="d-flex flex-column align-center">
+              <v-icon size="48" color="success" class="mb-2">
+                mdi-check-circle
+              </v-icon>
+              <div class="text-h4 mb-1">{{ completedActionItems }}</div>
+              <div class="text-subtitle-1">Completed Actions</div>
+            </div>
+          </v-card-text>
+        </v-card>
+          </v-col>
+
+      <v-col cols="12" md="3">
+        <v-card class="stats-card" elevation="2">
+          <v-card-text>
+            <div class="d-flex flex-column align-center">
+              <v-icon size="48" color="warning" class="mb-2">
+                mdi-clock
+              </v-icon>
+              <div class="text-h4 mb-1">{{ pendingActionItems }}</div>
+              <div class="text-subtitle-1">Pending Actions</div>
+            </div>
+          </v-card-text>
+        </v-card>
+          </v-col>
+
+      <v-col cols="12" md="3">
+        <v-card class="stats-card" elevation="2">
+          <v-card-text>
+            <div class="d-flex flex-column align-center">
+              <v-icon size="48" color="info" class="mb-2">
+                mdi-account-group
+              </v-icon>
+              <div class="text-h4 mb-1">{{ teamMembers.length }}</div>
+              <div class="text-subtitle-1">Team Members</div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Main Content -->
+    <v-row>
+      <!-- Recent Retrospectives -->
+      <v-col cols="12" md="8">
+        <v-card elevation="2">
+          <v-card-title class="d-flex align-center">
+            Recent Retrospectives
+            <v-spacer />
+            <v-btn
+              variant="text"
+              color="primary"
+              @click="router.push('/past-retros')"
+            >
+              View All
+            </v-btn>
+          </v-card-title>
+          <v-card-text>
+            <v-list lines="two">
+              <v-list-item
+                v-for="retro in recentRetros"
+                :key="retro.id"
+                :title="retro.title"
+                :subtitle="formatDate(retro.createdAt)"
+                @click="router.push(`/retro/${retro.id}`)"
+              >
+                <template #prepend>
+                  <v-avatar :color="getTemplateColor(retro.templateId)">
+                    <v-icon>{{ getTemplateIcon(retro.templateId) }}</v-icon>
+                  </v-avatar>
+                </template>
+                <template #append>
+                  <v-chip
+                    size="small"
+                    :color="getStatusColor(retro.status)"
+                  >
+                    {{ retro.status }}
+                  </v-chip>
+                </template>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- Action Items -->
+      <v-col cols="12" md="4">
+        <v-card elevation="2">
+          <v-card-title>Pending Action Items</v-card-title>
+          <v-card-text>
+            <v-list>
+              <v-list-item
+                v-for="item in pendingActionItemsList"
+                :key="item.id"
+                :title="item.title"
+                :subtitle="`Assigned to: ${item.assignee}`"
+              >
+                <template #prepend>
+                  <v-checkbox
+                    v-model="item.completed"
+                    @change="updateActionItem(item)"
+                  />
+                </template>
+                <template #append>
+                  <v-chip
+                    size="small"
+                    :color="getDueDateColor(item.dueDate)"
+                  >
+                    {{ formatDueDate(item.dueDate) }}
+                  </v-chip>
+                </template>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Quick Tips -->
+    <v-row class="mt-6">
+      <v-col cols="12">
+        <v-card elevation="2">
+          <v-card-title>Agile Tips</v-card-title>
+          <v-card-text>
+            <v-carousel
+              hide-delimiters
+              height="200"
+              show-arrows="hover"
+            >
+              <v-carousel-item
+                v-for="(tip, i) in agileTips"
+                :key="i"
+              >
+                <div class="d-flex flex-column align-center justify-center h-100 text-center pa-4">
+                  <v-icon size="48" color="primary" class="mb-4">
+                    {{ tip.icon }}
+                  </v-icon>
+                  <div class="text-h6 mb-2">{{ tip.title }}</div>
+                  <div class="text-body-1">{{ tip.description }}</div>
+                </div>
+              </v-carousel-item>
+            </v-carousel>
+          </v-card-text>
+        </v-card>
           </v-col>
         </v-row>
-      </v-container>
-    </v-form>
-  </v-responsive>
 
+    <!-- Create Team Dialog -->
+    <create-team-dialog
+      v-model="showCreateTeamDialog"
+      @team-created="onTeamCreated"
+    />
+      </v-container>
 </template>
 
 <script setup lang="ts">
-import { useStore } from '@/composables/store'
-// import { db } from '@/firebase'
-import { doc, getDoc, setDoc } from "firebase/firestore"
-import { uid } from 'uid'
-import { onMounted, reactive, ref } from 'vue'
-import { useFirestore, useDocument } from 'vuefire'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
+import { useTeamStore } from '@/stores/teamStore'
+import { useRetroStore } from '@/stores/retroStore'
+import CreateTeamDialog from '@/components/team/CreateTeamDialog.vue'
 
-const db = useFirestore()
+const router = useRouter()
+const { currentUser } = useAuth()
+const teamStore = useTeamStore()
+const retroStore = useRetroStore()
 
-const formats = [
-  '~~Random~~',
-  'Start, Stop, Continue',
-  'Glad, Sad, Mad',
-  'Sailboat',
-  '4Ls',
-  'Lean Coffee',
-  'Starfish',
-  'Timeline',
-  'Went Well, Do Differently, Appreciations',
-  'Proud, Sorry, Thankful',
-  'ESVP',
-  'Plus, Minus, Interesting',
-  'Keep, Add, Less, More',
-  'Drop, Add, Keep, Improve',
-  'KALM',
-  'Sprint Retrospective',
-  'Project Retrospective',
-  'Team Health Check',
-  'Mad, Sad, Glad',
-  'Satisfaction',
-  'Learning Matrix',
-]
+const showCreateTeamDialog = ref(false)
+const currentTeam = computed(() => teamStore.currentTeam)
+const teamMembers = computed(() => currentTeam.value?.members || [])
 
-const icebreakers = [
-  '',
-  'What is your favorite book?',
-  'If you could have any superpower, what would it be?',
-  'What is your favorite hobby?',
-  'If you could travel anywhere in the world, where would you go?',
-  'What is your favorite movie?',
-  'What is one thing you are grateful for today?',
-  'If you could meet any historical figure, who would it be?',
-  'What is your favorite food?',
-  'What is your favorite season and why?',
-  'What is one thing you are looking forward to this week?',
-  'If you could learn any skill instantly, what would it be?',
-  'What is your favorite way to relax?',
-  'What is your favorite childhood memory?',
-  'If you could have dinner with anyone, living or dead, who would it be?',
-  'What is your favorite quote or saying?',
-  'What is one thing you love about your job?',
-  'What is your favorite type of music?',
-  'If you could live in any time period, when would it be?',
-  'What is your favorite sport or physical activity?',
-  'What is one goal you have for this year?'
-]
+const recentRetros = computed(() => retroStore.recentRetrospectives)
+const completedActionItems = computed(() => retroStore.completedActionItemsCount)
+const pendingActionItems = computed(() => retroStore.pendingActionItemsCount)
+const pendingActionItemsList = computed(() => retroStore.pendingActionItems)
 
-const options = ref(false)
-const sessions = ref(false)
-
-let defaults = {
-  title: 'Sprint Retrospective',
-  format: formats[0],
-  icebreaker: icebreakers[0],
-  username: '',
-  password: '',
-  encryption: false,
-}
-let store = reactive(defaults)
-let sessionInfo = reactive({ currentSession: null as string | null, allSessions: [] as string[] })
-let retros = {}
-
-async function start() {
-  console.log('start', store)
-
-  const docId = await createRetro()
-
-  const { set } = useStore()
-  set('retro', store, store.password)
-  // set('app', { currentSession: docId, allSessions: [docId] })
-  // const sessionInfo = { currentSession: docId, allSessions: [docId] }
-  if (docId) {
-    sessionInfo.currentSession = docId
-    if (!sessionStorage.allSessions) sessionStorage.allSessions = []
-    if (!sessionStorage.allSessions.includes(docId)) sessionInfo.allSessions.push(docId)
-    window.localStorage.setItem('app', JSON.stringify(sessionInfo))
-  }
-
-  console.log('Saved data', store, store.password)
-  // let data = JSON.stringify(store)
-  // if (store.encryption && store.password) {
-  //   console.log('Encrypting data')
-  //   data = encrypt(data, store.password)
-  // }
-  // window.localStorage.setItem('retro', data)
-  // const sessionData = { encryption: true, password: store.password }
-  // window.sessionStorage.setItem('retro', JSON.stringify(sessionData))
-}
-
-// type Retrospective = {
-//   title: string,
-//   description: string | null,
-//   owner: string,
-//   format: string,
-//   icebreaker: string,
-//   board: any,
-// }
-
-async function createRetro() {
-  try {
-    // const doc = await databases.getDocument('agilemate', 'retrospectives', 'sessions')
-    const retro = {
-      title: store.title,
-      owner: store.username,
-      format: store.format,
-      // icebreaker: store.icebreaker,
-      board: {
-        columns: [
-          { title: 'Start', cards: [] },
-          { title: 'Stop', cards: [] },
-          { title: 'Continue', cards: [] },
-        ],
-      },
-      // config: {
-      //   encryption: store.encryption,
-      //   password: store.password,
-      // },
-      // created: new Date().toISOString(),
-      // updated: new Date().toISOString(),
-    }
-    console.log('createRetro', retro)
-    // await databases.createDocument('agilemate', 'retrospectives', ID.unique(0), doc)
-    // await databases.updateDocument('agilemate', 'retrospectives', 'sessions', doc.$id, doc)
-
-
-    const docId = uid(6)
-    await setDoc(doc(db, "retro", docId), retro)
-    // await addDoc(collection(db, "retro"), retro); // automatinc id
-    // db.app..collection('retrospectives').add(doc)
-    console.log('Retrospective created')
-    return docId
-  } catch (error) {
-    console.error('Error creating retrospective', error)
-  }
-}
-
-async function loadRetros() {
-  for (let retroId of sessionInfo.allSessions) {
-    // const retro = await useDocument(doc(db, "retro", retroId))
-    const retro = await getDoc(doc(db, "retro", retroId))
-    if(retro.exists()) {
-      console.log('Retrospective', retro.data(), retroId)
-      retros[retro.id] = retro.data()
-    }
-  }
-}
-
-onMounted(() => {
-  const info = window.localStorage.getItem('app')
-  if (info) sessionInfo = JSON.parse(info)
-  console.log('Loaded session info', sessionInfo)
-  const { get } = useStore()
-  const data = get('retro')
-  console.log('Loaded data', data)
-  if (data) defaults = data
-  store = reactive(defaults)
-  loadRetros()
+onMounted(async () => {
+  await Promise.all([
+    teamStore.loadTeams(),
+    retroStore.loadRetrospectives()
+  ])
 })
+
+const getWelcomeMessage = () => {
+  if (!currentUser.value) return 'Please sign in to get started.'
+  if (!currentTeam.value) return 'Create a team to start your first retrospective.'
+  return 'Ready for your next retrospective?'
+}
+
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(date))
+}
+
+const formatDueDate = (date: Date | undefined) => {
+  if (!date) return 'No due date'
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric'
+  }).format(new Date(date))
+}
+
+const getTemplateColor = (templateId: string) => {
+  const colors: Record<string, string> = {
+    'mad-sad-glad': 'primary',
+    'start-stop-continue': 'success',
+    'well-improve-action': 'info'
+  }
+  return colors[templateId] || 'grey'
+}
+
+const getTemplateIcon = (templateId: string) => {
+  const icons: Record<string, string> = {
+    'mad-sad-glad': 'mdi-emoticon',
+    'start-stop-continue': 'mdi-play-pause',
+    'well-improve-action': 'mdi-trending-up'
+  }
+  return icons[templateId] || 'mdi-help-circle'
+}
+
+const getStatusColor = (status: string) => {
+  const colors: Record<string, string> = {
+    'active': 'success',
+    'completed': 'info',
+    'draft': 'warning'
+  }
+  return colors[status] || 'grey'
+}
+
+const getDueDateColor = (date: Date | undefined) => {
+  if (!date) return 'grey'
+  const now = new Date()
+  const dueDate = new Date(date)
+  const diff = dueDate.getTime() - now.getTime()
+  const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24))
+  
+  if (daysLeft < 0) return 'error'
+  if (daysLeft <= 2) return 'warning'
+  return 'success'
+}
+
+const updateActionItem = async (item: any) => {
+  // TODO: Implement action item update
+  console.log('Updating action item:', item)
+}
+
+const onTeamCreated = async () => {
+  await teamStore.loadTeams()
+  showCreateTeamDialog.value = false
+}
+
+const agileTips = [
+  {
+    icon: 'mdi-lightbulb',
+    title: 'Focus on Solutions',
+    description: 'Instead of dwelling on problems, encourage the team to think about potential solutions.'
+  },
+  {
+    icon: 'mdi-account-voice',
+    title: 'Equal Participation',
+    description: 'Ensure everyone has a chance to speak and share their thoughts.'
+  },
+  {
+    icon: 'mdi-target',
+    title: 'Stay Focused',
+    description: 'Keep discussions relevant and actionable to make the most of your retrospective time.'
+  }
+]
 </script>
 
-<style lang="scss">
-html {
-  font-size: 12px !important;
+<style scoped>
+.welcome-card {
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)) 0%, rgb(var(--v-theme-secondary)) 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-card {
+  transition: transform 0.2s;
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+}
+
+.v-list-item {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.v-list-item:hover {
+  background-color: var(--v-surface-variant);
 }
 </style>

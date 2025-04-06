@@ -1,6 +1,7 @@
 // import { getAnalytics } from "firebase/analytics";
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const config = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -16,6 +17,7 @@ const config = {
 const app = initializeApp(config)
 // const analytics = getAnalytics(app)
 const db = getFirestore(app)
+const auth = getAuth(app)
 
-export { app, db };
+export { app, db, auth };
 

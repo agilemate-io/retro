@@ -7,8 +7,18 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActionItemDialog: typeof import('./src/components/action-items/ActionItemDialog.vue')['default']
+    ActionItemsBoard: typeof import('./src/components/action-items/ActionItemsBoard.vue')['default']
+    ConfirmDialog: typeof import('./src/components/common/ConfirmDialog.vue')['default']
+    CreateTeamDialog: typeof import('./src/components/team/CreateTeamDialog.vue')['default']
+    ExportDialog: typeof import('./src/components/retrospective/ExportDialog.vue')['default']
+    FeedbackBoard: typeof import('./src/components/feedback/FeedbackBoard.vue')['default']
+    FeedbackCard: typeof import('./src/components/feedback/FeedbackCard.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     Home: typeof import('./src/components/Home.vue')['default']
+    LoadingOverlay: typeof import('./src/components/common/LoadingOverlay.vue')['default']
+    NotificationList: typeof import('./src/components/common/NotificationList.vue')['default']
+    RetroTimer: typeof import('./src/components/retrospective/RetroTimer.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }
